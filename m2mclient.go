@@ -40,7 +40,7 @@ type Client struct {
 	stopCh      chan bool
 	stoppedCh   chan bool
 	running bool
-    handler map[string]func(*Client, string)
+	handler map[string]func(*Client, string)
 	msgQ chan Cmd
 }
 
@@ -67,11 +67,11 @@ func New(c *Config) *Client {
 }
 
 func (c *Client) AddHandler(cmdName string, handler func(*Client, string)){
-    c.handler[cmdName] = handler
+	c.handler[cmdName] = handler
 }
 func (c *Client) HasHandler(cmdName string) bool{
-    _, ok := c.handler[cmdName]
-    return ok
+	_, ok := c.handler[cmdName]
+	return ok
 }
 
 func (c *Client) Run() (chan Cmd, chan Cmd, error) {
@@ -93,9 +93,9 @@ func (c *Client) Stop() error {
 }
 
 func (c *Client) SendCmd(cmd Cmd) bool{
-    c.msgQ <- cmd
-    log.Print("sent msg")
-    return true
+	c.msgQ <- cmd
+	log.Print("sent msg")
+	return true
 }
 
 func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped chan<- bool) {
@@ -154,7 +154,7 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 				<-rcvStopped
 				<-sendStopped
 				select {
-            	case <-c.msgQ:
+				case <-c.msgQ:
 					default:
 				}
 				ok = false
