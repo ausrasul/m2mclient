@@ -21,6 +21,9 @@ You can find the server part here [https://github.com/ausrasul/m2mserver](https:
 - Command execution is user implemented.
 
 ## Work mechanism:
+
+![alt text](https://github.com/ausrasul/m2mclient/blob/master/image.jpg?raw=true)
+
 The server starts at a given port, and listen to connections.
 When a client tries to connect, it is authenticated.
 The client or the server can initiate communication (defined by the user)
