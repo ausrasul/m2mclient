@@ -10,31 +10,50 @@ import (
 )
 
 func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped chan<- bool){
-
 	for {
 		select{
 		case <- stopSend:
 			sendStopped <- true
 			log.Print("sender stopping.")
 			return
-		case txt:= <- outbox :
-			msg, err := json.Marshal(txt)
+		case command:= <- outbox :
+			msg, err := json.Marshal(command)
 			if err != nil {
 				log.Print("Error marshaling msg")
 				sendStopped <- true
 				return
 			}
-			w   := bufio.NewWriterSize(conn, len(msg) + 1)
+			// sending message header, the data size.
+			dataSize := []byte(strconv.Itoa(len(msg)))
+			dataSize = append(dataSize, byte('\n'))
+			w := bufio.NewWriterSize(conn, len(dataSize))
 
-			bytesSent, err := w.Write(append(msg, byte('\n')))
-			if err != nil || bytesSent < len(msg) + 1{
+			bytesSent, err := w.Write(dataSize)
+			if err != nil || bytesSent < len(dataSize) {
+				log.Print("Error buffering msg len")
+				sendStopped <- true
+				return
+			}
+			err = w.Flush()
+			if err != nil {
+				log.Print("Error sending msg")
+				sendStopped <- true
+				return
+			}
+			log.Print("bytes sent (header): ", bytesSent)
+
+			// sending the data
+			w = bufio.NewWriterSize(conn, len(msg))
+
+			bytesSent, err = w.Write(msg)
+			if err != nil || bytesSent < len(msg){
 				log.Print("Error buffering msg")
 				sendStopped <- true
 				return
 			}
 			err = w.Flush()
 			if err != nil {
-				log.Print("Error sending msg", err)
+				log.Print("Error sending msg")
 				sendStopped <- true
 				return
 			}
