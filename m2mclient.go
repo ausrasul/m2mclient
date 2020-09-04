@@ -87,8 +87,11 @@ func (c *Client) Stop() error {
 	} else {
 		return errors.New("already stopped")
 	}
+	log.Print("stopping client...")
 	c.stopCh <- true
+	log.Print("stopping client msg sent")
 	<-c.stoppedCh
+	log.Print("stopping client confirm received")
 	return nil
 }
 
@@ -147,6 +150,7 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 				stopSend <- true
 				<-rcvStopped
 				<-sendStopped
+				log.Print("stopping client sending confirmation")
 				stopped <- true
 				return
 			case <-hb.C:
