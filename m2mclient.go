@@ -111,7 +111,8 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 
 	hbTimeout := time.Duration(c.conf.Ttl + 5)
 	hbRate := time.Duration(c.conf.Ttl)
-	for {
+	retry := true
+	for retry {
 		time.Sleep(time.Second)
 		log.Print("Starting client")
 		conn, err := net.Dial("tcp", c.conf.Ip+":"+c.conf.Port)
@@ -137,7 +138,6 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 		defer close(inbox)
 		defer close(stopRcv)
 		defer close(rcvStopped)
-		//probe.Esn = c.conf.Uid
 
 		go sender(conn, outbox, stopSend, sendStopped)
 		go receiver(conn, inbox, stopRcv, rcvStopped)
@@ -154,7 +154,8 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 				<-sendStopped
 				log.Print("stopping client sending confirmation")
 				stopped <- true
-				return
+				retry = false
+				break
 			case <-hb.C:
 				log.Print("Heartbeat -->")
 				hb = time.NewTimer(time.Second * hbRate)
@@ -216,6 +217,9 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 		if !ok {
 			log.Print("All stopped, reconnecting in 10 seconds")
 			c.running = false
+		}
+		if !retry {
+			break
 		}
 		time.Sleep(10 * time.Second)
 	}
