@@ -141,6 +141,14 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 		ok := true
 		for ok {
 			select {
+			case <- stop:
+				log.Print("Stopping client...")
+				stopRcv <- true
+				stopSend <- true
+				<-rcvStopped
+				<-sendStopped
+				stopped <- true
+				return
 			case <-hb.C:
 				log.Print("Heartbeat -->")
 				hb = time.NewTimer(time.Second * hbRate)
@@ -201,7 +209,6 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 		}
 		if !ok {
 			log.Print("All stopped, reconnecting in 10 seconds")
-			stopped <- true
 		}
 		time.Sleep(10 * time.Second)
 	}
