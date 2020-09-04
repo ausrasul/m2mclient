@@ -200,6 +200,7 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 			}
 		}
 		if !ok {
+			log.Print("All stopped, reconnecting in 10 seconds")
 			stopped <- true
 		}
 		time.Sleep(10 * time.Second)
