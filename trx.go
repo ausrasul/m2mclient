@@ -84,8 +84,8 @@ func receiver(conn net.Conn, inbox chan<- Cmd, stopRcv <-chan bool, rcvStopped c
 				continue
 			}
 			log.Print("Error reading:", err.Error())
-			return
 			rcvStopped <- true
+			return
 		}
 		dataSizeByte = dataSizeByte[:len(dataSizeByte)-1] // strip the last byte \n
 		dataSize, err := strconv.Atoi(string(dataSizeByte))
