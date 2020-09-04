@@ -155,6 +155,7 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 				log.Print("stopping client sending confirmation")
 				stopped <- true
 				retry = false
+				ok = false
 				break
 			case <-hb.C:
 				log.Print("Heartbeat -->")
