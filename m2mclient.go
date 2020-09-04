@@ -74,11 +74,12 @@ func (c *Client) HasHandler(cmdName string) bool{
 	return ok
 }
 
-func (c *Client) Run() (chan Cmd, chan Cmd, error) {
-	in := make(chan Cmd)
-	out := make(chan Cmd)
-	go c.run(in, out, c.stopCh, c.stoppedCh)
-	return in, out, nil
+func (c *Client) Run() error {
+	if c.running == true {
+		return errors.New("already running")
+	}
+	go c.run(c.stopCh, c.stoppedCh)
+	return nil
 }
 
 func (c *Client) Stop() error {
@@ -101,7 +102,7 @@ func (c *Client) SendCmd(cmd Cmd) bool{
 	return true
 }
 
-func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped chan<- bool) {
+func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 	if !c.initialized {
 		return
 	}
@@ -122,6 +123,7 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 			log.Print("Error authenticating client")
 			continue
 		}
+		c.running = true
 		outbox := make(chan Cmd, 1)
 		stopSend := make(chan bool, 1)
 		sendStopped := make(chan bool, 1)
@@ -213,6 +215,7 @@ func (c *Client) run(in <-chan Cmd, out chan<- Cmd, stop <-chan bool, stopped ch
 		}
 		if !ok {
 			log.Print("All stopped, reconnecting in 10 seconds")
+			c.running = false
 		}
 		time.Sleep(10 * time.Second)
 	}
