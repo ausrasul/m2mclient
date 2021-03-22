@@ -39,37 +39,36 @@ type Client struct {
 	conf        *Config
 	stopCh      chan bool
 	stoppedCh   chan bool
-	running bool
-	handler map[string]func(*Client, string)
-	msgQ chan Cmd
+	running     bool
+	handler     map[string]func(*Client, string)
+	msgQ        chan Cmd
 }
 
-
-
-type Cmd struct{
-	Name string
-	Serial string
-	SchType int // 0 immediet, 1 once, 2 periodical
-	SchTime time.Time
+type Cmd struct {
+	Name      string
+	Serial    string
+	SchType   int // 0 immediet, 1 once, 2 periodical
+	SchTime   time.Time
 	SchPeriod time.Duration
-	Param string
+	Param     string
 }
+
 func New(c *Config) *Client {
 	return &Client{
 		initialized: true,
 		conf:        c,
 		stopCh:      make(chan bool, 1),
 		stoppedCh:   make(chan bool, 1),
-		running: false,
-		msgQ: make(chan Cmd, 1000),
-		handler: make(map[string]func(*Client, string)),
+		running:     false,
+		msgQ:        make(chan Cmd, 1000),
+		handler:     make(map[string]func(*Client, string)),
 	}
 }
 
-func (c *Client) AddHandler(cmdName string, handler func(*Client, string)){
+func (c *Client) AddHandler(cmdName string, handler func(*Client, string)) {
 	c.handler[cmdName] = handler
 }
-func (c *Client) HasHandler(cmdName string) bool{
+func (c *Client) HasHandler(cmdName string) bool {
 	_, ok := c.handler[cmdName]
 	return ok
 }
@@ -96,7 +95,7 @@ func (c *Client) Stop() error {
 	return nil
 }
 
-func (c *Client) SendCmd(cmd Cmd) bool{
+func (c *Client) SendCmd(cmd Cmd) bool {
 	c.msgQ <- cmd
 	log.Print("sent msg")
 	return true
@@ -108,7 +107,10 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 	}
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
+	/*
+		Heartbeat sent ever Ttl,
+		Heartbeat ack from server must be received within ttl + 5.
+	*/
 	hbTimeout := time.Duration(c.conf.Ttl + 5)
 	hbRate := time.Duration(c.conf.Ttl)
 	retry := true
@@ -146,7 +148,7 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 		ok := true
 		for ok {
 			select {
-			case <- stop:
+			case <-stop:
 				log.Print("Stopping client...")
 				stopRcv <- true
 				stopSend <- true
@@ -171,7 +173,7 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 				<-sendStopped
 				select {
 				case <-c.msgQ:
-					default:
+				default:
 				}
 				ok = false
 				continue
@@ -181,7 +183,7 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 				if cmd.Name == "hb_ack" {
 					log.Print("HB_ACK received")
 					timer = time.NewTimer(time.Second * hbTimeout)
-				} else if cmd.Name == "del_task"{
+				} else if cmd.Name == "del_task" {
 					taskDel(cmd.Param)
 				} else {
 					callback, ok := c.handler[cmd.Name]
@@ -190,7 +192,7 @@ func (c *Client) run(stop <-chan bool, stopped chan<- bool) {
 						//callback(c, cmd.Param)
 					}
 				}
-			case msg := <- c.msgQ:
+			case msg := <-c.msgQ:
 				log.Print("Sending command: ", msg.Name)
 				outbox <- msg
 			case <-sendStopped:

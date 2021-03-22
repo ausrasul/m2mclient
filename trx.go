@@ -1,22 +1,23 @@
 package m2mclient
+
 import (
-	"log"
-	"net"
-	"time"
 	"bufio"
 	"encoding/json"
-	"strconv"
 	"io"
+	"log"
+	"net"
+	"strconv"
+	"time"
 )
 
-func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped chan<- bool){
+func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped chan<- bool) {
 	for {
-		select{
-		case <- stopSend:
+		select {
+		case <-stopSend:
 			sendStopped <- true
 			log.Print("sender stopping.")
 			return
-		case command:= <- outbox :
+		case command := <-outbox:
 			msg, err := json.Marshal(command)
 			if err != nil {
 				log.Print("Error marshaling msg")
@@ -36,7 +37,7 @@ func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped 
 			}
 			err = w.Flush()
 			if err != nil {
-				log.Print("Error sending msg")
+				log.Print("Error sending msg", err)
 				sendStopped <- true
 				return
 			}
@@ -46,14 +47,14 @@ func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped 
 			w = bufio.NewWriterSize(conn, len(msg))
 
 			bytesSent, err = w.Write(msg)
-			if err != nil || bytesSent < len(msg){
+			if err != nil || bytesSent < len(msg) {
 				log.Print("Error buffering msg")
 				sendStopped <- true
 				return
 			}
 			err = w.Flush()
 			if err != nil {
-				log.Print("Error sending msg")
+				log.Print("Error sending msg", err)
 				sendStopped <- true
 				return
 			}
@@ -62,20 +63,20 @@ func sender(conn net.Conn, outbox <-chan Cmd, stopSend <-chan bool, sendStopped 
 	}
 }
 
-func receiver(conn net.Conn, inbox chan<- Cmd, stopRcv <-chan bool, rcvStopped chan<- bool){
-	chunkSize := 4*1024
+func receiver(conn net.Conn, inbox chan<- Cmd, stopRcv <-chan bool, rcvStopped chan<- bool) {
+	chunkSize := 40 * 1024
 	// don't recreate the reader buffer, or else you loose unread buffered data.
 	r := bufio.NewReaderSize(conn, chunkSize)
 	for {
 		select {
-		case <- stopRcv:
+		case <-stopRcv:
 			rcvStopped <- true
 			log.Print("receiver stopping.")
 			return
 		default:
 		}
 
-		conn.SetDeadline(time.Now().Add(1e9))
+		conn.SetDeadline(time.Now().Add(time.Second * 1))
 		// read a chunk and extract following data size to allow us to reassemble the frames.
 		dataSizeByte, err := r.ReadBytes('\n')
 		if err != nil {
@@ -93,28 +94,28 @@ func receiver(conn net.Conn, inbox chan<- Cmd, stopRcv <-chan bool, rcvStopped c
 			log.Print("data size not integer ", dataSizeByte, err)
 			continue
 		}
-		log.Print("dataSize ", dataSize)
+		//log.Print("dataSize ", dataSize)
 		// holder for data
 		data := make([]byte, 0)
 		for {
 			// read only enough data, less or equal to chunkSize, but not too much
 			// risking reading data that doesn't belong to us.
 			buffSize := dataSize
-			if dataSize > chunkSize{
+			if dataSize > chunkSize {
 				buffSize = chunkSize
 			}
 			if buffSize == 0 {
 				log.Print("data read complete.")
 				break
 			}
-			log.Print("dataSize: ", dataSize, "buffSize ", buffSize)
+			//log.Print("dataSize: ", dataSize, "buffSize ", buffSize)
 			buf := make([]byte, buffSize) //the chunk size
-			n, err := r.Read(buf) //loading chunk into buffer
-			log.Print("read ", n, " bytes.")
+			n, err := r.Read(buf)         //loading chunk into buffer
+			//log.Print("read ", n, " bytes.")
 			// update the remaining bytes we expect to read.
 			dataSize -= n
 			buf = buf[:n] // trim the read buffer
-			if n == 0 || err != nil{
+			if n == 0 || err != nil {
 				if err == io.EOF {
 					// this will probably never be the case.
 					log.Print("read complete")
@@ -135,7 +136,7 @@ func receiver(conn net.Conn, inbox chan<- Cmd, stopRcv <-chan bool, rcvStopped c
 		}
 
 		var cmd Cmd
-		err = json.Unmarshal (data , &cmd)
+		err = json.Unmarshal(data, &cmd)
 		if err != nil {
 			log.Print("Error unmarshaling msg:", err)
 			rcvStopped <- true
